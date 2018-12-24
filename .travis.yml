@@ -1,14 +1,14 @@
 language: go
 
 go:
-  - "1.10.x"
+  - 1.10.x
 
 before_install:
   - go get -t github.com/Masterminds/glide
   - go get -t github.com/codeclimate/test-reporter
   - cmake .
   - make
-  
+
 before_script:
   - test-reporter before-build
 
@@ -17,3 +17,19 @@ script:
 
 after_script:
   - test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
+before_deploy:
+  - go get github.com/mitchellh/gox
+  - glide install
+  - gox -cgo -osarch="linux/386 linux/amd64 darwin/386 darwin/amd64" -ldflags "-s -w -X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=$TRAVIS_COMMIT" ./cmd/...
+
+deploy:
+  provider: releases
+  api_key:
+    secure: uGFdnqc23aUqoZD9bZqQsGl4KiHAH6WkUrH9mrdgzsb5sXaChhX0J9klJcDEbYOKG19HUeoBHSorwSKl6Bsg+eOqf8E+blNQLNq7CoPcceGkpXBrfmGe3zgXKjrEGDbsEBuR7oA4GcJAYKw+tJEXZ7z4jy6kuJFxn5j3MZqvz0XIKM6/dUiF/0N1sfLrDWWpdBrW2yJt9yHaeqXhhA/IiHVrlj79KYxTU0UFwdBW6CjxLpOoQWaFwW3X94l5/UpKrDXFpwjjCOhceBpm8dHBxbYujDtop/n/R0VdhtVXtdyx/I877e/d5z3fDL6xTuAMnDYbJdqhVVbBoAukbOpYzhksJ7+1dFFEcku6pFfYPMnxjhxNs9AN5b/qAdxauUe167a/XVUOyOUFoZlptZsGO5i9HXCAnLOgyyTMpeeo3ELIJvSQAK5J9l/wz1g0cJboRsu1rM0LmNqynzScJja2MWaH1vXKlFA56Lr0ZtY/N3T7pg+BPucFp4Fp8hedoEIqRZbqWDAlfX4aY8u6BWTS5929ThrXT9Y5PRZplLAW9QdlmHewWZpevCSm5HA60SF7Qz9tUAVTyKzx/GLvLBNyI82M9JggHwK0gVe/fU0NtKewZnwNaJ4uM5LZvJxq6h0+/N6BLBZsLmBbUC3BgodMSdxb9y0rG8ipAWi9dZhEYd0=
+  file_glob: true
+  file: ./bin/*
+  skip_cleanup: true
+  draft: true
+  on:
+    tags: true
