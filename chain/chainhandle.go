@@ -929,3 +929,8 @@ func (cs *ChainService) checkBlockHandshake(peerID peer.ID, remoteBestHeight uin
 
 	return
 }
+
+func (cs *ChainService) setSync(isSync bool) {
+	//don't use mempool if sync is in progress
+	cs.validator.signVerifier.SetSkipMempool(isSync)
+}

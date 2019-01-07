@@ -155,6 +155,7 @@ type IChainHandler interface {
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 	checkBlockHandshake(peerID peer.ID, remoteBestHeight uint64, remoteBestHash []byte)
+	setSync(val bool)
 }
 
 // ChainService manage connectivity of blocks
@@ -451,6 +452,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		if msg.Bstate != nil {
 			bstate = msg.Bstate.(*state.BlockState)
 		}
+
+		cm.setSync(msg.IsSync)
+
 		err := cm.addBlock(block, bstate, msg.PeerID)
 
 		rsp := message.AddBlockRsp{
