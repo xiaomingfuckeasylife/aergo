@@ -654,6 +654,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	ce.constructCall(&ci)
 	err = ce.err
 
+	const releaseTag9_10Blockno = 570000
 	if err != nil {
 		logger.Warn().Err(err).Msg("constructor is failed")
 		ret, _ := json.Marshal("constructor call error:" + err.Error())
@@ -667,7 +668,10 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if err == types.ErrVmConstructorIsNotPayable {
 			return string(ret), err
 		}
-		return string(ret), err
+		if stateSet.blockHeight > releaseTag9_10Blockno {
+			return string(ret), err
+		}
+		return string(ret), nil
 	}
 	err = ce.commitCalledContract()
 	if err != nil {
@@ -675,7 +679,10 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Error().Err(err).Msg("constructor is failed")
 		return string(ret), err
 	}
-	return ce.jsonRet, err
+	if stateSet.blockHeight > releaseTag9_10Blockno {
+		return ce.jsonRet, err
+	}
+	return ce.jsonRet, nil
 
 }
 
