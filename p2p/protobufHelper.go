@@ -145,7 +145,7 @@ func (pr *pbBpNoticeOrder) SendTo(p *remotePeerImpl) error {
 		return err
 	}
 	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Str(LogBlkHash,enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+		Str(LogMsgID, pr.GetMsgID().String()).Str(LogBlkHash,enc.ToString(pr.block.Hash)).Msg("Send block notice")
 	return nil
 }
 

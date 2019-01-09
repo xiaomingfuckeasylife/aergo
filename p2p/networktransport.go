@@ -14,14 +14,16 @@ import (
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	"github.com/libp2p/go-libp2p-protocol"
+	"github.com/rs/zerolog"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-
 	cfg "github.com/aergoio/aergo/config"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
@@ -81,9 +83,17 @@ type networkTransport struct {
 
 	conf        *cfg.P2PConfig
 	logger      *log.Logger
+
 }
 
 var _ NetworkTransport = (*networkTransport)(nil)
+
+var (
+	iotraceLog *zerolog.Logger
+	iotracefile *os.File
+	iotraceAll bool
+	iotracePeers map[peer.ID]bool
+)
 
 func (sl *networkTransport) PrivateKey() crypto.PrivKey {
 	return sl.privateKey
@@ -98,6 +108,7 @@ func (sl *networkTransport) SelfNodeID() peer.ID {
 	return sl.selfMeta.ID
 }
 
+
 func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransport {
 	nt := &networkTransport{
 		conf:           conf,
@@ -105,7 +116,11 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransp
 
 		hostInited: &sync.WaitGroup{},
 	}
+	if len(conf.LogIOTrace) > 0 {
+		nt.initIOTraceLog(conf.LogIOTrace, conf.TracePeers)
+	}
 	nt.initNT()
+
 
 	return nt
 }
@@ -178,6 +193,44 @@ func (sl *networkTransport) initServiceBindAddress() {
 		sl.bindPort = uint32(sl.conf.NPBindPort)
 	}
 
+}
+
+func (sl *networkTransport) initIOTraceLog(filepath string, tracePeers []string) {
+	logging.SetDebugLogging()
+
+	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_APPEND, 0660);
+	if err != nil {
+		panic("failed to open iotrace log file "+filepath+": "+err.Error())
+	}
+	//wr := diode.NewWriter(file, 1000, 10*time.Millisecond, func(missed int) {
+	//	fmt.Printf("Logger Dropped %d messages", missed)
+	//})
+	wr := zerolog.ConsoleWriter{Out: file, NoColor: true, TimeFormat: "2006-01-02T15:04:05.999999999"}
+iologger := zerolog.New(wr).With().Timestamp().Str("module", "p2pio").Logger().Level(zerolog.DebugLevel)
+	iotraceLog = &iologger
+	iotracefile = file
+
+	if len(tracePeers) > 0 {
+		iotraceAll = false
+		iotracePeers = make(map[peer.ID]bool)
+		for _, b58id := range tracePeers {
+			id, err := peer.IDB58Decode(b58id)
+			if err != nil {
+				panic("invalid peer id in tracepeers")
+			}
+			iotracePeers[id] = true
+		}
+	} else {
+		iotraceAll = true
+	}
+}
+
+func isToTrace(id peer.ID) bool {
+	if iotraceLog == nil {
+		return false
+	}
+	_, exists :=  iotracePeers[id]
+	return iotraceAll || exists
 }
 
 func (sl *networkTransport) Start() error {
@@ -268,6 +321,13 @@ func (sl *networkTransport) startListener() {
 
 
 func (sl *networkTransport) Stop() error {
+	if iotracefile != nil {
+		defer func() {
+			iotracefile.Sync()
+			time.Sleep(time.Millisecond << 7)
+			iotracefile.Close()
+		}()
+	}
 	return sl.Host.Close()
 }
 

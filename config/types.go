@@ -74,6 +74,8 @@ type P2PConfig struct {
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
+	LogIOTrace string   `mapstructure:"logiotrace" description:"Log file to record low-level network tranfer. This is not enabled if this filed empty"`
+	TracePeers []string `mapstructure:"tracepeers" description:"List of ids of peers to limit io trace. All peers will be traced if empty"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
