@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"github.com/rs/zerolog"
 	"time"
 )
 
@@ -32,7 +31,7 @@ func NewV030ReadWriter(r *bufio.Reader, w *bufio.Writer) *V030ReadWriter {
 	return rw
 }
 
-func NewV030TraceableReadWriter(r *bufio.Reader, w *bufio.Writer) *V030ReadWriter {
+func NewV030TraceableReadWriter(r *bufio.Reader, w *bufio.Writer, peerID string) *V030ReadWriter {
 	rw := &V030ReadWriter{
 		r: &V030Reader{rd:r},
 		w: &V030Writer{wr:w},
@@ -40,7 +39,8 @@ func NewV030TraceableReadWriter(r *bufio.Reader, w *bufio.Writer) *V030ReadWrite
 
 	rw.r.trace=true
 	rw.w.trace=true
-
+	rw.r.peerID = peerID
+	rw.w.peerID = peerID
 	return rw
 }
 
@@ -65,12 +65,13 @@ type V030Reader struct {
 	headBuf [msgHeaderLength]byte
 
 	trace bool
+	peerID string
 }
 
 // ReadMsg() must be used in single thread
 func (r *V030Reader) ReadMsg() (Message, error) {
 	if r.trace {
-		iotraceLog.Debug().Str("wait",time.Now().Format("01-02T15:04:05.999999999")).Msg("waiting for message")
+		iotraceLog.Debug().Str("wait",time.Now().Format("01-02T15:04:05.999999999")).Msgf("[rd] peer=%s start waiting", r.peerID)
 	}
 	// fill data
 	read, err := r.readToLen(r.headBuf[:], msgHeaderLength)
@@ -96,7 +97,7 @@ func (r *V030Reader) ReadMsg() (Message, error) {
 	}
 	if r.trace {
 		lapHead = time.Since(start).Nanoseconds()
-		trMsg = fmt.Sprintf("[rd] msg_id=%s sub=%s",msg.ID().String(), msg.Subprotocol().String())
+		trMsg = fmt.Sprintf("[rd] peer=%s msg_id=%s sub=%s",r.peerID, msg.ID().String(), msg.Subprotocol().String())
 	}
 	payload := make([]byte, msg.length)
 	read, err = r.readToLen(payload, int(msg.length))
@@ -133,7 +134,7 @@ type V030Writer struct {
 	wr *bufio.Writer
 	headBuf [msgHeaderLength]byte
 	trace bool
-	tracelogger *zerolog.Logger
+	peerID string
 }
 
 // WriteMsg() must be used in single thread
@@ -158,7 +159,7 @@ func (w *V030Writer) WriteMsg(msg Message) error {
 	written, err := w.wr.Write(w.headBuf[:])
 	if w.trace {
 		lapHead = time.Since(start).Nanoseconds()
-		trMsg = fmt.Sprintf("[wr] msg_id=%s sub=%s",msg.ID().String(), msg.Subprotocol().String())
+		trMsg = fmt.Sprintf("[wr] peer=%s msg_id=%s sub=%s",w.peerID,msg.ID().String(), msg.Subprotocol().String())
 	}
 	if err != nil {
 		return err

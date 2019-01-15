@@ -46,7 +46,7 @@ func newV030StateHS(pm PeerManager, actorServ ActorService, log *log.Logger, cha
 	h := &V030Handshaker{pm: pm, actorServ: actorServ, logger: log, chainID:chainID, peerID: peerID, rd: bufio.NewReader(rd), wr:bufio.NewWriter(wr)}
 	if isToTrace(peerID) {
 		log.Debug().Str(LogPeerID, peerID.Pretty()).Msg("io trace enabled for peer")
-		h.msgRW = NewV030TraceableReadWriter(h.rd, h.wr)
+		h.msgRW = NewV030TraceableReadWriter(h.rd, h.wr, peerID.Pretty())
 	} else {
 		h.msgRW = NewV030ReadWriter(h.rd, h.wr)
 	}
