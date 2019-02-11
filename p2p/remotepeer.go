@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"runtime/debug"
+	"github.com/aergoio/aergo/p2p/audit"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
@@ -57,6 +58,7 @@ type remotePeerImpl struct {
 	mf        p2pcommon.MoFactory
 	signer    p2pcommon.MsgSigner
 	metric    *metric.PeerMetric
+	audit     audit.PeerAuditor
 
 	stopChan chan struct{}
 
@@ -84,6 +86,10 @@ type remotePeerImpl struct {
 
 	s  net.Stream
 	rw p2pcommon.MsgReadWriter
+}
+
+func (p *remotePeerImpl) OnExceed(auditor audit.PeerAuditor, cause string) {
+	p.goAwayMsg(fmt.Sprintf("penalty exceeded: %v",cause))
 }
 
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
@@ -253,6 +259,12 @@ func (p *remotePeerImpl) runRead() {
 			p.Stop()
 			return
 		}
+		if !p.checkAudit(msg.Subprotocol()) {
+			p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Float64("score", p.audit.ScoreSum()).Msg("peer penalty score exceed")
+			p.Stop()
+			return
+		}
+
 		if err = p.handleMsg(msg); err != nil {
 			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
 			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
@@ -305,6 +317,20 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 
 	handler.PostHandle(msg, payload)
 	return nil
+}
+
+func (p *remotePeerImpl) checkAudit(protocol p2pcommon.SubProtocol) bool {
+	switch protocol {
+	case subproto.GetBlockHeadersRequest, subproto.GetAncestorRequest, subproto.GetBlocksRequest, subproto.GetHashByNoRequest, subproto.GetHashesRequest :
+		p.audit.AddPenalty(audit.PenaltyTiny)
+	case subproto.GetTXsRequest :
+		p.audit.AddPenalty(audit.PenaltyTiny)
+	case subproto.PingRequest, subproto.AddressesRequest :
+		// TODO ping or address is add only if excessively frequent requests
+	default:
+		// notice or response is not added
+	}
+	return true
 }
 
 // Stop stops aPeer works
@@ -508,4 +534,9 @@ func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
 
 func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
+}
+
+func (p *remotePeerImpl) AddPenalty(penalty audit.Penalty) {
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str("penalty",penalty.String()).Msg("add penalty")
+	p.audit.AddPenalty(penalty)
 }

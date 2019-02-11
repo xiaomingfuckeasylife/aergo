@@ -3,6 +3,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/audit"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"strconv"
@@ -41,6 +42,8 @@ type peerManager struct {
 	signer         p2pcommon.MsgSigner
 	mf             p2pcommon.MoFactory
 	mm             metric.MetricsManager
+	bm             audit.BlacklistManager
+
 	skipHandshakeSync bool
 
 	peerFinder p2pcommon.PeerFinder
@@ -92,20 +95,21 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool, bm audit.BlacklistManager) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
-		nt:             nt,
-		handlerFactory: handlerFactory,
-		hsFactory:      hsFactory,
-		actorService:   iServ,
-		conf:           p2pConf,
-		signer:         signer,
-		mf:             mf,
-		mm:             mm,
-		logger:         logger,
-		mutex:          &sync.Mutex{},
+		nt:                nt,
+		handlerFactory:    handlerFactory,
+		hsFactory:         hsFactory,
+		actorService:      iServ,
+		conf:              p2pConf,
+		signer:            signer,
+		mf:                mf,
+		mm:                mm,
+		bm:                bm,
+		logger:            logger,
+		mutex:             &sync.Mutex{},
 		skipHandshakeSync: skipHandshakeSync,
 
 		status:          initial,
@@ -325,6 +329,8 @@ func (pm *peerManager) tryRegister(peer p2pcommon.RemotePeer) bool {
 	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, peer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
 
 	// TODO add triggering sync.
+	// TODO initialize peer autit
+	// peer.audit = pm.bm.NewPeerAuditor(rMeta.IPAddress, peerID, rPeer)
 
 	return true
 }
