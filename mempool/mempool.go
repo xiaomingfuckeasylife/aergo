@@ -45,6 +45,14 @@ var (
 	txMaxSize      = 200 * 1024
 )
 
+type MemPoolCnt struct {
+	MemPoolPut     int
+	MemPoolGet     int
+	MemPoolExist   int
+	MemPoolExistEx int
+	MemPoolDel     int
+}
+
 // MemPool is main structure of mempool service
 type MemPool struct {
 	*component.BaseComponent
@@ -52,6 +60,7 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
+	MemPoolCnt
 	sdb         *state.ChainStateDB
 	bestBlockID types.BlockID
 	bestBlockNo types.BlockNo
@@ -164,7 +173,10 @@ func (mp *MemPool) monitor() {
 		case <-showmetric.C:
 			if mp.cfg.Mempool.ShowMetrics {
 				l, o := mp.Size()
-				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).Msg("mempool metrics")
+				mp.Info().Int("len", l).Int("orphan", o).Int("acc", len(mp.pool)).
+					Int("mput", mp.MemPoolPut).Int("mget", mp.MemPoolGet).
+					Int("mdel", mp.MemPoolDel).Int("mexist", mp.MemPoolExist).
+					Int("mexistex", mp.MemPoolExistEx).Msg("mempool metrics")
 			}
 			// Evict old enough transactions
 		case <-evict.C:
@@ -218,24 +230,29 @@ func (mp *MemPool) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
 		mp.Debug().Str("hash", types.ToTxID(msg.Tx.GetHash()).String()).Msg("got put request")
+		mp.MemPoolPut++
 		mp.verifier.Request(msg.Tx, context.Sender())
 	case *message.MemPoolGet:
+		mp.MemPoolGet++
 		txs, err := mp.get(msg.MaxBlockBodySize)
 		context.Respond(&message.MemPoolGetRsp{
 			Txs: txs,
 			Err: err,
 		})
 	case *message.MemPoolDel:
+		mp.MemPoolDel++
 		errs := mp.removeOnBlockArrival(msg.Block)
 		context.Respond(&message.MemPoolDelRsp{
 			Err: errs,
 		})
 	case *message.MemPoolExist:
+		mp.MemPoolExist++
 		tx := mp.exist(msg.Hash)
 		context.Respond(&message.MemPoolExistRsp{
 			Tx: tx,
 		})
 	case *message.MemPoolExistEx:
+		mp.MemPoolExistEx++
 		txs := mp.existEx(msg.Hashes)
 		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
 	case *actor.Started:
