@@ -11,12 +11,14 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
 )
 
 // TxList is internal struct for transactions per account
 type TxList struct {
 	sync.RWMutex
+	logger   *log.Logger
 	base     *types.State
 	lastTime time.Time
 	account  []byte
@@ -25,10 +27,11 @@ type TxList struct {
 }
 
 // NewTxList creates new TxList with given State
-func NewTxList(acc []byte, st *types.State) *TxList {
+func NewTxList(acc []byte, st *types.State, l *log.Logger) *TxList {
 	return &TxList{
 		base:    st,
 		account: acc,
+		logger:  l,
 	}
 }
 
@@ -130,6 +133,9 @@ func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []*
 
 	var balCheck bool
 
+	defer func() {
+		tl.logger.Debug().Int("ready", tl.ready).Int("tlen", len(tl.list)).Msg("mempool list delete leftovers ")
+	}()
 	if tl.base.Nonce == st.Nonce {
 		tl.base = st
 		return 0, nil

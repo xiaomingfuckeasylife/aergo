@@ -142,13 +142,16 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
+	//debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
+	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, bytesArrToString(data.Hashes))
 
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
 		th.logger.Debug().Int(LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
 		//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
 		for _, tx := range data.Txs {
+
+			th.logger.Debug().Str("hash", types.ToTxID(tx.GetHash()).String()).Msg("shoot ")
 			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
 		}
 	}

@@ -9,10 +9,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"net"
 	"reflect"
 	"time"
+
+	"github.com/aergoio/aergo/internal/enc"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -24,13 +25,13 @@ import (
 
 // frequently used constants for indicating p2p log category
 const (
-	LogPeerID  = "peer_id"
-	LogProtoID = "protocol_id"
-	LogMsgID   = "msg_id"
-	LogBlkHash = "blk_hash"
+	LogPeerID   = "peer_id"
+	LogProtoID  = "protocol_id"
+	LogMsgID    = "msg_id"
+	LogBlkHash  = "blk_hash"
 	LogBlkCount = "blk_cnt"
-	LogTxHash  = "tx_hash"
-	LogTxCount = "tx_cnt"
+	LogTxHash   = "tx_hash"
+	LogTxCount  = "tx_cnt"
 )
 
 // ActorService is collection of helper methods to use actor
@@ -197,7 +198,7 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func bytesArrToString(bbarray [][]byte) string {
-	return bytesArrToStringWithLimit(bbarray, 10)
+	return bytesArrToStringWithLimit(bbarray, 10000)
 }
 
 func bytesArrToStringWithLimit(bbarray [][]byte, limit int) string {
@@ -227,7 +228,7 @@ func PrintHashList(blocks []*types.Block) string {
 	case 0:
 		return "blk_cnt=0"
 	case 1:
-		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)",enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo)
+		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)", enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo)
 	default:
 		return fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d)", l, enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo, enc.ToString(blocks[l-1].Hash), blocks[l-1].Header.BlockNo)
 	}

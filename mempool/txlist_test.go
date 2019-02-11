@@ -22,7 +22,7 @@ func NewState(nonce uint64, bal uint64) *types.State {
 func TestListPutBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := NewTxList(nil, NewState(0, 0), pool.Logger)
 
 	count := 100
 	nonce := make([]int, count)
@@ -45,7 +45,7 @@ func TestListPutBasic(t *testing.T) {
 func TestListPutBasicOrphan(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := NewTxList(nil, NewState(0, 0), pool.Logger)
 
 	count := 20
 	nonce := make([]int, count)
@@ -70,7 +70,7 @@ func TestListPutBasicOrphan(t *testing.T) {
 func TestListPutErrors(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(9, 0))
+	mpl := NewTxList(nil, NewState(9, 0), pool.Logger)
 	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
 	if added != 0 || err != types.ErrTxNonceTooLow {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
@@ -90,7 +90,7 @@ func TestListPutErrors(t *testing.T) {
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := NewTxList(nil, NewState(0, 0), pool.Logger)
 
 	ret, txs := mpl.FilterByState(NewState(2, 100), zeroFee)
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
@@ -147,7 +147,7 @@ func TestListDel(t *testing.T) {
 func TestListDelMiddle(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(3, 0))
+	mpl := NewTxList(nil, NewState(3, 0), pool.Logger)
 
 	mpl.Put(genTx(0, 0, uint64(4), 0))
 	mpl.Put(genTx(0, 0, uint64(5), 0))
@@ -170,7 +170,7 @@ func TestListDelMiddle(t *testing.T) {
 func TestListPutRandom(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := NewTxList(nil, NewState(0, 0), pool.Logger)
 
 	count := 100
 	txs := make([]*types.Tx, count)

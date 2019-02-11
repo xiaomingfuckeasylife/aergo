@@ -125,7 +125,7 @@ func (mp *MemPool) AfterStart() {
 		Msg("mempool init")
 
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
-		WithInstance(NewTxVerifier(mp)))
+		WithInstance(NewTxVerifier(mp, mp.Logger)))
 
 	rsp, err := mp.RequestToFuture(message.ChainSvc, &message.GetBestBlock{}, time.Second*2).Result()
 	if err != nil {
@@ -217,6 +217,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.MemPoolPut:
+		mp.Debug().Str("hash", types.ToTxID(msg.Tx.GetHash()).String()).Msg("got put request")
 		mp.verifier.Request(msg.Tx, context.Sender())
 	case *message.MemPoolGet:
 		txs, err := mp.get(msg.MaxBlockBodySize)
@@ -389,10 +390,13 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		}
 	}
 
+	mp.Debug().Str("hash", types.ToBlockID(block.GetHash()).String()).Msg("start delete txs in mempool")
+
 	ag[0] = time.Since(start)
 	start = time.Now()
 	for acc, list := range mp.pool {
 		if !all && dirty[acc] == false {
+			mp.Debug().Str("acc", acc.String()).Msg("skip acc")
 			continue
 		}
 		ns, err := mp.getAccountState(list.GetAccount())
@@ -401,10 +405,20 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			// TODO : ????
 			continue
 		}
+		mp.Debug().Str("acc", acc.String()).Msg("skip acc")
 		diff, delTxs := list.FilterByState(ns, mp.coinbasefee)
 		mp.orphan -= diff
+
+		mp.Debug().Uint64("n", ns.Nonce).Str("acc", acc.String()).
+			Int("diff", diff).Int("delLen", len(delTxs)).Msg("Mempool delete result")
+
 		for _, tx := range delTxs {
 			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
+
+			mp.Debug().Str("hash", types.ToTxID(tx.GetHash()).String()).
+				Str("tx_acc", types.EncodeAddress(tx.GetBody().GetAccount())).
+				Uint64("tx_n", tx.GetBody().GetNonce()).
+				Msg("Mempool delete result")
 		}
 		mp.releaseMemPoolList(list)
 		check++
@@ -570,7 +584,7 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return nil, err
 	}
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(acc, ns)
+	mp.pool[id] = NewTxList(acc, ns, mp.Logger)
 	return mp.pool[id], nil
 }
 
