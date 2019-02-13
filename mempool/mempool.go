@@ -253,6 +253,7 @@ func (mp *MemPool) Receive(context actor.Context) {
 		})
 	case *message.MemPoolExistEx:
 		mp.MemPoolExistEx++
+		mp.MemPoolExist += len(msg.Hashes)
 		txs := mp.existEx(msg.Hashes)
 		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
 	case *actor.Started:
