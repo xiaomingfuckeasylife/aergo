@@ -6,12 +6,13 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -38,14 +39,14 @@ type P2P struct {
 
 	// caching data from genesis block
 	chainID *types.ChainID
-	nt 	NetworkTransport
-	pm     PeerManager
-	sm     SyncManager
-	rm     ReconnectManager
-	mm 	metric.MetricsManager
-	mf     moFactory
-	signer msgSigner
-	ca     types.ChainAccessor
+	nt      NetworkTransport
+	pm      PeerManager
+	sm      SyncManager
+	rm      ReconnectManager
+	mm      metric.MetricsManager
+	mf      moFactory
+	signer  msgSigner
+	ca      types.ChainAccessor
 
 	mutex sync.Mutex
 }
@@ -55,8 +56,8 @@ type HandlerFactory interface {
 }
 
 var (
-	_  ActorService = (*P2P)(nil)
-	_ HSHandlerFactory = (*P2P)(nil)
+	_  ActorService     = (*P2P)(nil)
+	_  HSHandlerFactory = (*P2P)(nil)
 	ni *nodeInfo
 )
 
@@ -83,13 +84,13 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *
 			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
 			priv, pub, err = GenerateKeyFile(baseCfg.AuthDir, DefaultPkKeyPrefix)
 			if err != nil {
-				panic("Failed to generate new pk file: "+err.Error())
+				panic("Failed to generate new pk file: " + err.Error())
 			}
 		} else {
 			logger.Info().Str("pk_file", autogenFilePath).Msg("Load existing generated private key file.")
 			priv, pub, err = LoadKeyFile(autogenFilePath)
 			if err != nil {
-				panic("Failed to load generated pk file '"+autogenFilePath+"' "+err.Error())
+				panic("Failed to load generated pk file '" + autogenFilePath + "' " + err.Error())
 			}
 		}
 	}
@@ -156,6 +157,7 @@ func (p2ps *P2P) BeforeStop() {
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
 	}
+	p2ps.sm.Stop()
 	p2ps.mutex.Lock()
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
@@ -168,7 +170,6 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap["netstat"] = p2ps.mm.Summary()
 	return &stmap
 }
-
 
 func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
 	p2ps.mutex.Lock()
@@ -187,12 +188,12 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	genesis := chainsvc.CDB().GetGenesisInfo()
 	chainIdBytes, err := genesis.ChainID()
 	if err != nil {
-		panic("genesis block is not set properly: "+err.Error())
+		panic("genesis block is not set properly: " + err.Error())
 	}
 	chainID := types.NewChainID()
 	err = chainID.Read(chainIdBytes)
 	if err != nil {
-		panic("invalid chainid: "+err.Error())
+		panic("invalid chainid: " + err.Error())
 	}
 	p2ps.chainID = chainID
 
@@ -258,7 +259,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.MapQueryMsg:
 		bestBlock, err := p2ps.GetChainAccessor().GetBestBlock()
 		if err == nil {
-			msg.BestBlock=bestBlock
+			msg.BestBlock = bestBlock
 			p2ps.SendRequest(message.MapSvc, msg)
 		}
 	case *message.MapQueryRsp:
@@ -271,7 +272,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		}
 	}
 }
-
 
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
@@ -364,7 +364,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
-	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID:p2ps.chainID, peerID: pid}
+	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: p2ps.chainID, peerID: pid}
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
 	} else {

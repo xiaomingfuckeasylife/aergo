@@ -8,12 +8,15 @@ package p2p
 import (
 	"bytes"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/hashicorp/golang-lru"
-	"sync"
 )
 
 type SyncManager interface {
@@ -23,6 +26,7 @@ type SyncManager interface {
 	HandleNewBlockNotice(peer RemotePeer, data *types.NewBlockNotice)
 	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
 	HandleNewTxNotice(peer RemotePeer, hashes []TxHash, data *types.NewTransactionsNotice)
+	Stop()
 }
 
 type syncManager struct {
@@ -35,6 +39,11 @@ type syncManager struct {
 
 	syncLock *sync.Mutex
 	syncing  bool
+
+	hit   uint64
+	total uint64
+	quit  chan bool
+	wg    sync.WaitGroup // wait for internal loop
 }
 
 func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) SyncManager {
@@ -50,9 +59,33 @@ func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) Sync
 		panic("Failed to create peermanager " + err.Error())
 	}
 
+	sm.wg.Add(1)
+	go sm.monitor()
 	return sm
 }
 
+func (sm *syncManager) monitor() {
+	defer sm.wg.Done()
+
+	showmetric := time.NewTicker(time.Second)
+	defer showmetric.Stop()
+	for {
+		select {
+		// Log current counts on mempool
+		case <-showmetric.C:
+			t := atomic.LoadUint64(&sm.total)
+			h := atomic.LoadUint64(&sm.hit)
+			r := float64(h) * float64(100) / float64(t)
+			sm.logger.Debug().Uint64("total", t).Uint64("hit", h).Float64("per", r).Msg("sm metric")
+		case <-sm.quit:
+			return
+		}
+	}
+}
+func (sm *syncManager) Stop() {
+	sm.quit <- true
+	sm.wg.Wait()
+}
 func (sm *syncManager) checkWorkToken() bool {
 	sm.syncLock.Lock()
 	defer sm.syncLock.Unlock()
@@ -98,6 +131,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer RemotePeer, data *types.NewBloc
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
 }
+
 // HandleGetBlockResponse handle when remote peer send a block information.
 // TODO this method will be removed after newer syncer is developed
 func (sm *syncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse) {
@@ -133,6 +167,10 @@ func (sm *syncManager) HandleNewTxNotice(peer RemotePeer, hashArrs []TxHash, dat
 		copy(hash, hashArr[:])
 		toGet = append(toGet, hash)
 	}
+
+	atomic.AddUint64(&sm.total, uint64(len(data.TxHashes)))
+	atomic.AddUint64(&sm.hit, uint64(len(data.TxHashes)-len(toGet)))
+
 	if len(toGet) == 0 {
 		// sm.logger.Debug().Str(LogPeerID, peerID.Pretty()).Msg("No new tx found in tx notice")
 		return
@@ -146,14 +184,14 @@ func blockHashArrToString(bbarray []message.BlockHash) string {
 	return blockHashArrToStringWithLimit(bbarray, 10)
 }
 
-func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int ) string {
+func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	var arrSize = len(bbarray)
 	if limit > arrSize {
 		limit = arrSize
 	}
-	for i :=0; i < limit; i++ {
+	for i := 0; i < limit; i++ {
 		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString([]byte(hash)))
@@ -161,12 +199,11 @@ func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int ) stri
 		buf.WriteByte(',')
 	}
 	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ",  arrSize - limit))
+		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
 	}
 	buf.WriteByte(']')
 	return buf.String()
 }
-
 
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func txHashArrToString(bbarray []message.TXHash) string {
