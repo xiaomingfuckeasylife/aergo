@@ -48,7 +48,7 @@ type syncManager struct {
 
 func newSyncManager(actor ActorService, pm PeerManager, logger *log.Logger) SyncManager {
 	var err error
-	sm := &syncManager{actor: actor, pm: pm, logger: logger, syncLock: &sync.Mutex{}}
+	sm := &syncManager{actor: actor, pm: pm, logger: logger, syncLock: &sync.Mutex{}, quit: make(chan bool)}
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
@@ -78,11 +78,13 @@ func (sm *syncManager) monitor() {
 			r := float64(h) * float64(100) / float64(t)
 			sm.logger.Debug().Uint64("total", t).Uint64("hit", h).Float64("per", r).Msg("sm metric")
 		case <-sm.quit:
+			sm.logger.Info().Msg("going down")
 			return
 		}
 	}
 }
 func (sm *syncManager) Stop() {
+	sm.logger.Info().Msg("signal go down")
 	sm.quit <- true
 	sm.wg.Wait()
 }
