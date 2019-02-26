@@ -40,10 +40,6 @@ type requestInfo struct {
 // ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
 // NOTE: the return value is temporal works for old implementation and will be remove later.
 
-func dummyResponseReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
-	return false
-}
-
 // remotePeerImpl represent remote peer to which is connected
 type remotePeerImpl struct {
 	logger       *log.Logger
@@ -392,8 +388,13 @@ func (p *remotePeerImpl) PushTxsNotice(txHashes []types.TxID) {
 // ConsumeRequest remove request from request history.
 func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
 	p.reqMutex.Lock()
-	delete(p.requests, originalID)
-	p.reqMutex.Unlock()
+	defer p.reqMutex.Unlock()
+	_, found := p.requests[originalID]
+	if found {
+		delete(p.requests, originalID)
+	} else {
+		p.AddPenalty(audit.PenaltyBig, "uknown response")
+	}
 }
 
 // requestIDNotFoundReceiver is to handle response msg which the original message is not identified
@@ -536,7 +537,7 @@ func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
 }
 
-func (p *remotePeerImpl) AddPenalty(penalty audit.Penalty) {
-	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str("penalty",penalty.String()).Msg("add penalty")
+func (p *remotePeerImpl) AddPenalty(penalty audit.Penalty, why string) {
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str("penalty",penalty.String()).Str("why",why).Msg("add penalty")
 	p.audit.AddPenalty(penalty)
 }
