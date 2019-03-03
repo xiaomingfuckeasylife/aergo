@@ -128,6 +128,19 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 	return ma, nil
 }
 
+// GetIPFromMultiAddr returns ip address from multiaddr. It return nil if addr contains no ip4 or ip6 address
+func GetIPFromMultiAddr(addr multiaddr.Multiaddr) net.IP {
+	str, err := addr.ValueForProtocol(multiaddr.P_IP4)
+	if err == nil {
+		return net.ParseIP(str)
+	}
+	str, err = addr.ValueForProtocol(multiaddr.P_IP6)
+	if err == nil {
+		return net.ParseIP(str)
+	}
+	return nil
+}
+
 func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
 	dat, err := ioutil.ReadFile(keyFile)
 	if err == nil {
@@ -192,3 +205,4 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	idf.Sync()
 	return nil
 }
+
