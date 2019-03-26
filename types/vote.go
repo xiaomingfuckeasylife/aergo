@@ -2,16 +2,19 @@ package types
 
 import "math/big"
 
-const AergoSystem = "aergo.system"
-const AergoName = "aergo.name"
+const (
+	AergoSystem = "aergo.system"
+	AergoName   = "aergo.name"
 
-const MaxCandidates = 30
+	MaxCandidates = 30
 
-const VoteBP = "v1voteBP"
-const VoteGasPrice = "v1voteGasPrice"
-const VoteNumBP = "v1voteNumBP"
-const VoteNamePrice = "v1voteNamePrice"
-const VoteMinStaking = "v1voteMinStaking"
+	votePrefixLen  = 2
+	VoteBP         = "v1voteBP"
+	VoteGasPrice   = "v1voteGasPrice"
+	VoteNumBP      = "v1voteNumBP"
+	VoteNamePrice  = "v1voteNamePrice"
+	VoteMinStaking = "v1voteMinStaking"
+)
 
 var AllVotes = [...]string{VoteBP, VoteGasPrice, VoteNumBP, VoteNamePrice, VoteMinStaking}
 
@@ -32,4 +35,14 @@ func (vl VoteList) Swap(i, j int) { vl.Votes[i], vl.Votes[j] = vl.Votes[j], vl.V
 
 func (v Vote) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(v.Amount)
+}
+
+// getSysParamName(vk string) returns the name part of vk.
+func getSysParamName(vk string) []byte {
+	return []byte(vk[votePrefixLen:])
+}
+
+// SysParamBpCount returns the name part from VoteNumBP.
+func SysParamBpCount() []byte {
+	return getSysParamName(VoteNumBP)
 }

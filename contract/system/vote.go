@@ -9,13 +9,17 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58"
 )
+
+var defaultBpCount int
 
 var voteKey = []byte("vote")
 var sortKey = []byte("sort")
@@ -198,8 +202,50 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
+// InitDefaultBpCount sets defaultBpCount to bpCount.
+//
+// Caution: This function must be called only once before all the aergosvr
+// services start.
+func InitDefaultBpCount(bpCount int) {
+	// Ensure that it is not modified after it is initialized.
+	if defaultBpCount > 0 {
+		return
+	}
+	defaultBpCount = bpCount
+}
+
+func getDefaultBpCount() int {
+	return defaultBpCount
+}
+
+func getBpCount(ar AccountStateReader) (int, error) {
+	r, err := GetVoteResult(ar, types.SysParamBpCount(), 1)
+	if err != nil {
+		return 0, err
+	}
+
+	n := getDefaultBpCount()
+	v := r.GetVotes()
+	if len(v) != 0 {
+		n, err = strconv.Atoi(string(v[0].Candidate))
+		if err != nil {
+			return 0, err
+		}
+		if n <= 0 {
+			return 0, fmt.Errorf("invalid block producers count (%v)", n)
+		}
+	}
+
+	return n, nil
+}
+
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader, n int) ([]string, error) {
+func GetRankers(ar AccountStateReader) ([]string, error) {
+	n, err := getBpCount(ar)
+	if err != nil {
+		return nil, err
+	}
+
 	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
