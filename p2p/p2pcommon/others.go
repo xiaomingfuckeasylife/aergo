@@ -33,6 +33,8 @@ type MsgOrder interface {
 	SendTo(p RemotePeer) error
 }
 
+// ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
+// NOTE: the return value is temporal works for old implementation and will be remove later.
 type ResponseReceiver func(Message, proto.Message) bool
 type PbMessage interface {
 	proto.Message

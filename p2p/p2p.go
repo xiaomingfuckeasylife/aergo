@@ -134,7 +134,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.chainID = chainID
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
-	blacklistMan := audit.NewBlacklistManager(p2ps.Logger, cfg.AuthDir)
+	blacklistMan := audit.NewBlacklistManager(cfg.Audit, cfg.AuthDir, p2ps.Logger)
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
@@ -323,7 +323,7 @@ func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor 
 
 func (p2ps *P2P) ReceiveResp(context actor.Context) {
 	var peer p2pcommon.RemotePeer
-	var penalty audit.Penalty
+	var penalty p2pcommon.Penalty
 
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
