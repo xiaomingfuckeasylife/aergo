@@ -159,24 +159,22 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-		/* TODO: will be changed
-		case VoteNumBP,
-			VoteGasPrice,
-			VoteNamePrice,
-			VoteMinStaking:
-			for i, v := range ci.Args {
-				if i > 1 {
-					return ErrTxInvalidPayload
-				}
-				vstr, ok := v.(string)
-				if !ok {
-					return ErrTxInvalidPayload
-				}
-				if _, ok := new(big.Int).SetString(vstr, 10); !ok {
-					return ErrTxInvalidPayload
-				}
+	case VoteNumBP,
+		VoteGasPrice,
+		VoteNamePrice,
+		VoteMinStaking:
+		for i, v := range ci.Args {
+			if i > 1 {
+				return ErrTxInvalidPayload
 			}
-		*/
+			vstr, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if _, ok := new(big.Int).SetString(vstr, 10); !ok {
+				return ErrTxInvalidPayload
+			}
+		}
 	default:
 		return ErrTxInvalidPayload
 	}

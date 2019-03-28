@@ -85,14 +85,11 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if sender != nil && sender.Balance().Cmp(amount) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
-	case types.VoteBP:
-		/*
-			case types.VoteBP,
-				types.VoteGasPrice,
-				types.VoteNumBP,
-				types.VoteNamePrice,
-				types.VoteMinStaking:
-		*/
+	case types.VoteBP,
+		types.VoteGasPrice,
+		types.VoteNumBP,
+		types.VoteNamePrice,
+		types.VoteMinStaking:
 		staked, err := getStaking(scs, account)
 		if err != nil {
 			return nil, err
