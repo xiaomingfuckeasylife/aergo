@@ -63,3 +63,30 @@ func (i *SpInt64) SetBytes(b []byte) error {
 func (i *SpInt64) GetBytes() []byte {
 	return []byte(strconv.FormatInt(int64(*i), 64))
 }
+
+// SpStr implements SpValue where the parameter value is a string.
+type SpStr string
+
+// SetString sets i to the integer converted from v.
+func (s SpStr) SetString(v string) error {
+	s = SpStr(v)
+
+	return nil
+}
+
+// Get returns *i.
+func (s SpStr) Get() interface{} {
+	return string(s)
+}
+
+// SetBytes sets *i to b.
+func (s SpStr) SetBytes(b []byte) error {
+	s = SpStr(b)
+
+	return nil
+}
+
+// GetBytes returns the marshaled byte array of *i.
+func (s SpStr) GetBytes() []byte {
+	return []byte(s)
+}
