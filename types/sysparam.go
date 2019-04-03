@@ -4,7 +4,27 @@
  */
 package types
 
-import "strconv"
+import (
+	"fmt"
+	"math/big"
+	"strconv"
+
+	"github.com/aergoio/aergo/internal/enc"
+)
+
+const (
+	// Below are the (enum) constants for the (some) system parameters.
+
+	// SpBpNumber represents the number of BPs.
+	SpBpNumber = iota
+	// SpGasPrice represents the gas price parameter.
+	SpGasPrice
+	// SpNamePrice represents the price per name creation.
+	SpNamePrice
+	// SpMinStake represents the minimum stake, under which staking is not
+	// allowed.
+	SpMinStake
+)
 
 // SpValue is an interface, which is an abstraction of system parameter values.
 type SpValue interface {
@@ -28,7 +48,7 @@ type SpInt64 struct {
 }
 
 // NewSpInt64 returns a new SpInt64.
-func NewSpInt64(name, desc, val string, mut, dao bool) *SpInt64 {
+func NewSpInt64(name, desc string, mut, dao bool, val string) *SpInt64 {
 	v := &SpInt64{
 		SysParam: &SysParam{
 			Name: name,
@@ -44,7 +64,7 @@ func NewSpInt64(name, desc, val string, mut, dao bool) *SpInt64 {
 	return v
 }
 
-// SetString sets i to the integer converted from v.
+// SetString iniailizes i with v.
 func (i *SpInt64) SetString(v string) error {
 	var err error
 
@@ -77,34 +97,77 @@ func (i *SpInt64) SetBytes(b []byte) error {
 	return i.SetString(string(b))
 }
 
-// GetBytes returns the marshaled byte array of *i.
-func (i *SpInt64) GetBytes() []byte {
-	return []byte(i.GetValue())
+// SpBigInt implements SpValue where the parameter value is a big interger.
+type SpBigInt struct {
+	*SysParam
+	bi     *big.Int
+	cached bool
 }
 
-// SpStr implements SpValue where the parameter value is a string.
-type SpStr string
+// NewSpBigInt returns a new SpBigInt.
+func NewSpBigInt(name, desc string, mut, dao bool, val string) *SpInt64 {
+	v := &SpInt64{
+		SysParam: newSysParam(name, desc, mut, dao),
+	}
+	if err := v.SetString(val); err != nil {
+		return nil
+	}
 
-// SetString sets i to the integer converted from v.
-func (s SpStr) SetString(v string) error {
-	s = SpStr(v)
-
-	return nil
+	return v
 }
 
-// Get returns *i.
-func (s SpStr) Get() interface{} {
-	return string(s)
+// SetString initializes bi to v.
+func (p *SpBigInt) SetString(v string) error {
+	if z, ok := new(big.Int).SetString(v, 10); ok {
+		p.Value = v
+		p.bi = z
+		p.cached = true
+		return nil
+	}
+	return fmt.Errorf("failed to covert %v to a big int", v)
 }
 
-// SetBytes sets *i to b.
-func (s SpStr) SetBytes(b []byte) error {
-	s = SpStr(b)
+// Get returns p.bi
+func (p *SpBigInt) Get() interface{} {
+	if p.cached {
+		return p.bi
+	}
 
-	return nil
+	var ok bool
+	if p.bi, ok = new(big.Int).SetString(p.GetValue(), 10); !ok {
+		return nil
+	}
+
+	p.cached = true
+
+	return p.bi
 }
 
-// GetBytes returns the marshaled byte array of *i.
-func (s SpStr) GetBytes() []byte {
-	return []byte(s)
+// SetBytes initializes p with b.
+func (p *SpBigInt) SetBytes(b []byte) error {
+	if p.bi = new(big.Int).SetBytes(b); p.bi != nil {
+		p.Value = string(b)
+		p.cached = true
+	}
+	return fmt.Errorf("failed to convert %v to a big.Int value", enc.ToString(b))
+}
+
+// GetBytes returns a byte representation of p.bi.
+func (p *SpBigInt) GetBytes(b []byte) []byte {
+	return p.bi.Bytes()
+}
+
+// NewSysParam returns a new SysParam.
+func newSysParam(name, desc string, mut, dao bool) *SysParam {
+	return &SysParam{
+		Name: name,
+		Desc: desc,
+		Mut:  mut,
+		Dao:  dao,
+	}
+}
+
+// GetBytes returns sp.Value.
+func (sp *SysParam) GetBytes() []byte {
+	return []byte(sp.GetValue())
 }
