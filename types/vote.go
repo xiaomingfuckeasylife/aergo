@@ -7,12 +7,11 @@ const AergoName = "aergo.name"
 
 const MaxCandidates = 30
 
-const CreateAgenda = "v1createAgenda"
-const VoteAgenda = "v1voteAgenda"
+const CreateProposal = "v1createProposal"
+const VoteProposal = "v1voteProposal"
 const VoteBP = "v1voteBP"
-const VoteMinStaking = "v1voteMinStaking"
 
-const agendaPrefixKey = "agenda"
+const proposalPrefixKey = "proposal"
 
 var AllVotes = [...]string{VoteBP}
 

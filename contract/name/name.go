@@ -191,25 +191,3 @@ func deserializeNameMap(data []byte) *NameMap {
 	}
 	return nil
 }
-
-/*
-version 0
-
-func setAddress(scs *state.ContractState, name, address []byte) error {
-	owner := &Owner{Address: address}
-	return setOwner(scs, name, owner)
-}
-
-func serializeOwner(owner *Owner) []byte {
-	if owner != nil {
-		return owner.Address
-	}
-	return nil
-}
-func deserializeOwner(data []byte) *Owner {
-	if data != nil {
-		return &Owner{Address: data}
-	}
-	return nil
-}
-*/
