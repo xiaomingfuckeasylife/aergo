@@ -19,7 +19,6 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
@@ -138,6 +137,9 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (*types.ChainInfo, error) {
 	chainInfo := &types.ChainInfo{}
 
+	future := rpc.hub.RequestFuture(message.ChainSvc, &message.GetParams{},
+		defaultActorTimeout, "rpc.(*AergoRPCService).GetChainInfo")
+
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
 		id := genesisInfo.ID
 
@@ -148,18 +150,21 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 			Consensus: id.Consensus,
 		}
 
-		chainInfo.BpNumber = uint32(len(genesisInfo.BPs))
-
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()
 		}
 	}
-
-	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
-
-	if minStaking := types.GetStakingMinimum(); minStaking != nil {
-		chainInfo.Stakingminimum = minStaking.Bytes()
+	result, err := future.Result()
+	if err != nil {
+		return nil, err
 	}
+	rsp, ok := result.(*message.GetParamsRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	chainInfo.Maxblocksize = rsp.MaxBlockSize
+	chainInfo.BpNumber = uint32(rsp.BpCount)
+	chainInfo.Stakingminimum = rsp.MinStaking.Bytes()
 
 	return chainInfo, nil
 }
@@ -807,7 +812,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version:pi.Version}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
 		ret.Peers = append(ret.Peers, peer)
 	}
 

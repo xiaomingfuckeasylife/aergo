@@ -6,6 +6,8 @@
 package message
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -182,4 +184,11 @@ type ListEvents struct {
 type ListEventsRsp struct {
 	Events []*types.Event
 	Err    error
+}
+
+type GetParams struct{}
+type GetParamsRsp struct {
+	BpCount      int
+	MinStaking   *big.Int
+	MaxBlockSize uint64
 }

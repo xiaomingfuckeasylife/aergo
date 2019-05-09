@@ -407,6 +407,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetVote,
 		*message.GetStaking,
 		*message.GetNameInfo,
+		*message.GetParams,
 		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
@@ -793,6 +794,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(&message.ListEventsRsp{
 			Events: events,
 			Err:    err,
+		})
+	case *message.GetParams:
+		bpcount := system.GetBpCount(cw.sdb)
+		context.Respond(&message.GetParamsRsp{
+			BpCount:      bpcount,
+			MinStaking:   system.GetMinimumStaking(cw.sdb),
+			MaxBlockSize: uint64(MaxBlockSize()),
 		})
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
